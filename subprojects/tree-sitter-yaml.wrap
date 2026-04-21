@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/nda-cunh/tree-sitter-yaml
+revision = HEAD
+depth = 1
+directory = tree-sitter-yaml
