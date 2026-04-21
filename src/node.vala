@@ -24,6 +24,19 @@ namespace Yaml {
 
 		}
 
+		public double as_double(double fallback = 0.0) {
+			if (inner.is_of_type(VariantType.DOUBLE))
+				return inner.get_double();
+			else if (inner.is_of_type(VariantType.INT64))
+				return (double)inner.get_int64();
+			else if (inner.is_of_type(VariantType.STRING)) {
+				double result;
+				if (double.try_parse(inner.get_string(), out result))
+					return result;
+			}
+			return fallback;
+		}
+
 		public bool as_bool(bool fallback = false) {
 			if (inner.is_of_type(VariantType.BOOLEAN))
 				return inner.get_boolean();
