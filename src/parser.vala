@@ -4,11 +4,11 @@ namespace Yaml {
 
 	public class Parser : Object {
 		[CCode (cname = "tree_sitter_yaml")]
-			private extern static unowned Language tree_sitter_yaml ();
+		private extern static unowned Language tree_sitter_yaml ();
 
 		public Variant? root_variant { get; private set; }
 
-		public void parse(string source) {
+		public void parse (string source) {
 			var ts_parser = new TreeSitter.Parser();
 			ts_parser.set_language(tree_sitter_yaml());
 			var tree = ts_parser.parse_string(null, source, source.length);
@@ -17,7 +17,7 @@ namespace Yaml {
 			this.root_variant = parse_node(root_node, source);
 		}
 
-		public Variant? lookup(string key, string? base_path = null) {
+		public Variant? lookup (string key, string? base_path = null) {
 			if (this.root_variant == null) return null;
 
 			string path = (base_path != null) ? base_path + "/" + key : key;
@@ -52,7 +52,7 @@ namespace Yaml {
 			return current;
 		}
 
-		public Variant parse_node(TreeSitter.Node node, string source) {
+		public Variant parse_node (TreeSitter.Node node, string source) {
 			string type = node.get_type();
 
 			if (type == "stream" || type == "document") {
@@ -157,7 +157,7 @@ namespace Yaml {
 			return source.substring((int)node.get_start_byte(), (int)(node.get_end_byte() - node.get_start_byte())).strip();
 		}
 
-		public HashTable<string, string> to_hashmap(string source) {
+		public HashTable<string, string> to_hashmap (string source) {
 			var map = new HashTable<string, string>(str_hash, str_equal);
 			var ts_parser = new TreeSitter.Parser();
 			ts_parser.set_language(tree_sitter_yaml());
