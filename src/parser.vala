@@ -63,7 +63,7 @@ namespace Yaml {
 
 		public Variant parse_node (TreeSitter.Node node, string source) throws ParseError {
 			unowned string type = node.get_type();
-			if (node.is_error()) { // ou node.get_type() == "ERROR"
+			if (node.is_error()) {
 				var start = node.get_start_point();
 				throw new ParseError.INVALID_SYNTAX ("Syntax error at line %u, column %u: near '%s'", start.row + 1, start.column + 1, get_node_text(node, source));
 			}
