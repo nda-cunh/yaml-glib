@@ -7,6 +7,8 @@ namespace Yaml {
 		}
 
 		public double as_double (double fallback = 0.0) {
+			if (inner == null)
+				return fallback;
 			if (inner.is_of_type(VariantType.DOUBLE))
 				return inner.get_double();
 			else if (inner.is_of_type(VariantType.INT64))
@@ -20,6 +22,8 @@ namespace Yaml {
 		}
 
 		public bool as_bool (bool fallback = false) {
+			if (inner == null)
+				return fallback;
 			if (inner.is_of_type(VariantType.BOOLEAN))
 				return inner.get_boolean();
 			else if (inner.is_of_type(VariantType.INT64))
@@ -39,6 +43,8 @@ namespace Yaml {
 		}
 
 		public string as_string (string fallback = "") {
+			if (inner == null)
+				return fallback;
 			if (inner.is_of_type(VariantType.STRING))
 				return inner.get_string();
 			else if (inner.is_of_type(VariantType.INT64))
@@ -83,12 +89,14 @@ namespace Yaml {
 
 		// Simple Function
 		public bool contains  (string key) {
-			if (!is_dict()) return false;
+			if (!is_dict())
+				return false;
 			return inner.lookup_value(key, null) != null;
 		}
 
 		public bool has_key (string key) {
-			if (!is_dict()) return false;
+			if (!is_dict())
+				return false;
 			return inner.lookup_value(key, null) != null;
 		}
 

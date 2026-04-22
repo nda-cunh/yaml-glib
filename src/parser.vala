@@ -8,13 +8,22 @@ namespace Yaml {
 
 		public Variant? root_variant { get; private set; }
 
-		public void parse (string source) {
+		public void parse (string source) throws ParseError {
 			var ts_parser = new TreeSitter.Parser();
 			ts_parser.set_language(tree_sitter_yaml());
+
 			var tree = ts_parser.parse_string(null, source, source.length);
 			var root_node = tree.get_root_node();
 
+			if (root_node.has_error()) {
+				throw new ParseError.INVALID_SYNTAX("Syntax error detected in YAML content.");
+			}
+
 			this.root_variant = parse_node(root_node, source);
+
+			if (this.root_variant == null) {
+				throw new ParseError.EMPTY_DOCUMENT("The YAML document is empty or could not be parsed.");
+			}
 		}
 
 		public Variant? lookup (string key, string? base_path = null) {
@@ -25,20 +34,20 @@ namespace Yaml {
 			return lookup_internal(this.root_variant, path);
 		}
 
-		private Variant? lookup_internal(Variant container, string path) {
+		private Variant? lookup_internal (Variant container, string path) {
 			string[] parts = path.split("/");
 			Variant? current = container;
 
-			foreach (var part in parts) {
+			foreach (unowned var part in parts) {
 				if (part == "" || current == null) continue;
 
-				if (current.is_of_type(new VariantType("a{sv}"))) {
+				if (current.get_type_string() == "a{sv}") {
 					current = current.lookup_value(part, null);
 					if (current != null && current.is_of_type(VariantType.VARIANT)) {
 						current = current.get_variant();
 					}
 				}
-				else if (current.is_of_type(new VariantType("av"))) {
+				else if (current.classify() == Variant.Class.ARRAY) {
 					int index = (int) uint64.parse(part);
 					if (index >= 0 && index < current.n_children()) {
 						current = current.get_child_value(index);
@@ -52,8 +61,12 @@ namespace Yaml {
 			return current;
 		}
 
-		public Variant parse_node (TreeSitter.Node node, string source) {
-			string type = node.get_type();
+		public Variant parse_node (TreeSitter.Node node, string source) throws ParseError {
+			unowned string type = node.get_type();
+			if (node.is_error()) { // ou node.get_type() == "ERROR"
+				var start = node.get_start_point();
+				throw new ParseError.INVALID_SYNTAX ("Syntax error at line %u, column %u: near '%s'", start.row + 1, start.column + 1, get_node_text(node, source));
+			}
 
 			if (type == "stream" || type == "document") {
 				for (uint i = 0; i < TreeSitter.node_get_child_count(node); i++) {
@@ -75,6 +88,7 @@ namespace Yaml {
 			}
 
 			switch (type) {
+				case "flow_mapping":
 				case "block_mapping":
 					var builder = new VariantBuilder(new VariantType("a{sv}"));
 					for (uint i = 0; i < TreeSitter.node_get_child_count(node); i++) {
@@ -90,6 +104,7 @@ namespace Yaml {
 						}
 					}
 					return builder.end();
+
 				case "block_sequence":
 					var builder = new VariantBuilder(new VariantType("av"));
 					for (uint i = 0; i < TreeSitter.node_get_child_count(node); i++) {
@@ -100,12 +115,13 @@ namespace Yaml {
 								var child = TreeSitter.node_get_child(item, j);
 								if (child.get_type() != "-") {
 									builder.add("v", parse_node(child, source));
-									break; 
+									break;
 								}
 							}
 						}
 					}
 					return builder.end();
+
 
 				case "flow_sequence":
 					var builder = new VariantBuilder(new VariantType("av"));
@@ -118,6 +134,7 @@ namespace Yaml {
 						builder.add("v", parse_node(item, source));
 					}
 					return builder.end();
+
 				case "block_node":
 				case "flow_node":
 				case "document":
@@ -127,61 +144,57 @@ namespace Yaml {
 					}
 					return new Variant.string("");
 
-				default:
-					if (type == "comment") return new Variant.string("");
-
+				case "block_scalar":
+					return new Variant.string(get_node_text(node, source).substring(1)._strip());
+				case "comment":
+					return new Variant.string("");
+				case "string":
+				case "escape_sequence":	
+				case "plain_scalar":				
+				case "double_quote_scalar":
+				case "single_quote_scalar":
 					string text = get_node_text(node, source);
-
-					if (text.has_prefix("\"") && text.has_suffix("\"")) {
-						return new Variant.string(text.substring(1, text.length - 2));
+					return from_text(text);
+				default:
+					if (node.get_child_count() > 0) {
+						throw new ParseError.UNEXPECTED_NODE("Unexpected node type '%s' with children at line %u, column %u", type, node.get_start_point().row + 1, node.get_start_point().column + 1);
 					}
-
-					if (text.has_prefix("'") && text.has_suffix("'")) {
-						return new Variant.string(text.substring(1, text.length - 2));
-					}
-
-					if (text == "true" || text == "false") {
-						return new Variant.boolean(text == "true");
-					}
-
-					int64 val;
-					if (int64.try_parse(text, out val)) {
-						return new Variant.int64(val);
-					}
-
-					return new Variant.string(text);
+					string text = get_node_text(node, source);
+					return from_text(text);
 			}
+		}
+
+		private Variant from_text (string text) {
+			if (text.has_prefix("\"") && text.has_suffix("\"")) {
+				if (text.length >= 2)
+					return new Variant.string(text.substring(1, text.length - 2));
+			}
+
+			if (text.has_prefix("'") && text.has_suffix("'")) {
+				if (text.length >= 2)
+					return new Variant.string(text.substring(1, text.length - 2));
+			}
+
+			if (text == "true" || text == "false") {
+				return new Variant.boolean(text == "true");
+			}
+
+			if ("." in text) {
+				double dval;
+				if (double.try_parse(text, out dval)) {
+					return new Variant.double(dval);
+				}
+			}
+
+			int64 val;
+			if (int64.try_parse(text, out val)) {
+				return new Variant.int64(val);
+			}
+			return new Variant.string(text);
 		}
 
 		private string get_node_text(TreeSitter.Node node, string source) {
-			return source.substring((int)node.get_start_byte(), (int)(node.get_end_byte() - node.get_start_byte())).strip();
-		}
-
-		public HashTable<string, string> to_hashmap (string source) {
-			var map = new HashTable<string, string>(str_hash, str_equal);
-			var ts_parser = new TreeSitter.Parser();
-			ts_parser.set_language(tree_sitter_yaml());
-			var tree = ts_parser.parse_string(null, source, source.length);
-			var root = tree.get_root_node();
-
-			string query_str = "(block_mapping_pair key: (_) @key value: (_) @value)";
-			uint error_offset;
-			QueryError error_type;
-			var query = new Query(tree_sitter_yaml(), query_str, query_str.length, out error_offset, out error_type);
-
-			var cursor = new QueryCursor();
-			cursor.exec(query, root);
-
-			QueryMatch match;
-			while (cursor.next_match(out match)) {
-				if (match.capture_count >= 2) {
-					string key = get_node_text(match.captures[0].node, source);
-					string val = get_node_text(match.captures[1].node, source);
-					map.set(key, val);
-				}
-			}
-			return map;
+			return source.substring((int)node.get_start_byte(), (int)(node.get_end_byte() - node.get_start_byte()))._strip();
 		}
 	}
 }
-

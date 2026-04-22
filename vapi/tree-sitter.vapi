@@ -234,6 +234,12 @@ namespace TreeSitter {
 		public uint32 get_end_byte ();
 		[CCode (cname = "ts_node_end_point", array_length = false)]
 		public Point get_end_point ();
+		[CCode (cname = "ts_node_has_error")]
+		public bool has_error ();
+		[CCode (cname = "ts_node_is_error")]
+		public bool is_error();
+		[CCode (cname = "ts_node_child_count")]
+		public uint32 get_child_count ();
 	}
 
 	/* Node functions */

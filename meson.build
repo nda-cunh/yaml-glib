@@ -23,10 +23,28 @@ dependencies = [
 
 subdir('src')
 
-executable(
+lib_yaml_glib = static_library(
   'yaml-glib',
   sources,
   dependencies : dependencies,
+  vala_vapi : 'yaml-glib.vapi',
+  vala_header : 'yaml-glib.h',
+  include_directories : include_directories('.'),
   c_args: '-w',
+  install : true,
+)
+
+dep_yaml_glib = declare_dependency(
+  link_with : lib_yaml_glib,
+  include_directories : include_directories('.'),
+  dependencies : dependencies,
+)
+
+meson.override_dependency('yaml-glib', dep_yaml_glib)
+
+executable(
+  'yaml-glib',
+  'src/main.vala',
+  dependencies : dep_yaml_glib,
   install : true,
 )

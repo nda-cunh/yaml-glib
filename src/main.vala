@@ -25,24 +25,25 @@ int main(string[] args) {
 		// print(parser.root_variant.print(true));
 
 		var root = new Yaml.Node(parser.root_variant);
-		var plugins = root["plugins"];
 
 		println ("Yaml content :");
+		println ("%s", root["description"].as_string("no_description"));
 
-		println ("Theme: [%s]", root["settings"]["ui"]["theme"].as_string("default_theme"));
-		println ("Font : [%d]", root["settings"]["ui"]["font_size"].as_int());
-		println ("Plugins :");
-		foreach (var plugin in plugins) {
-			println (" Name   : [%s]", plugin["name"].as_string("no_name"));
-			println (" Url    : [%s]", plugin["url"].as_string("not_defined"));
-			println (" Active : [%s]", plugin["active"].as_string("false"));
-			if (plugin["tags"].is_array()) {
-				println ("  tags :");
-				foreach (var tag in plugin["tags"]) {
-					println ("    - %s", tag.as_string("inconnu"));
-				}
-			}
-		}
+		// println ("Theme: [%s]", root["settings"]["ui"]["theme"].as_string("default_theme"));
+		// println ("Font : [%d]", root["settings"]["ui"]["font_size"].as_int());
+		// println ("Plugins :");
+		// println ("%s", plugins.at(0)["name"].as_string("no_plugins"));
+		// foreach (var plugin in plugins) {
+			// println (" Name   : [%s]", plugin["name"].as_string("no_name"));
+			// println (" Url    : [%s]", plugin["url"].as_string("not_defined"));
+			// println (" Active : [%s]", plugin["active"].as_string("false"));
+			// if (plugin["tags"].is_array()) {
+				// println ("  tags :");
+				// foreach (var tag in plugin["tags"]) {
+					// println ("    - %s", tag.as_string("inconnu"));
+				// }
+			// }
+		// }
 
 	}
 	catch (Error e) {
